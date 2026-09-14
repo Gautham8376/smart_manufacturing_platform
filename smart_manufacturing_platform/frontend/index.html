@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AERO-MES 4.0 | Production Control & Traceability Platform</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="/static/css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col">
+
+  <!-- TOP APP BAR -->
+  <header class="bg-slate-900 border-b border-slate-800 px-6 py-3.5 sticky top-0 z-50 flex flex-wrap items-center justify-between gap-4 shadow-xl">
+    <div class="flex items-center space-x-3">
+      <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/20">
+        <i class="fa-solid fa-microchip text-white text-xl"></i>
+      </div>
+      <div>
+        <div class="flex items-center space-x-2">
+          <h1 class="text-lg font-bold tracking-tight text-white">AERO-MES 4.0</h1>
+          <span class="text-xs font-semibold px-2 py-0.5 rounded bg-cyan-950 text-cyan-400 border border-cyan-800">SMART CONTROL</span>
+        </div>
+        <p class="text-xs text-slate-400">Real-Time Resource Locking, Digital Thread Genealogy & Early Warning System</p>
+      </div>
+    </div>
+
+    <!-- KPI Summary Pills -->
+    <div class="hidden lg:flex items-center space-x-3">
+      <div class="bg-slate-800/80 border border-slate-700/80 px-3 py-1.5 rounded-lg flex items-center space-x-2">
+        <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 pulse-green"></span>
+        <span class="text-xs text-slate-400">Availability:</span>
+        <span id="kpi-availability" class="text-xs font-bold text-emerald-400">100%</span>
+      </div>
+      <div class="bg-slate-800/80 border border-slate-700/80 px-3 py-1.5 rounded-lg flex items-center space-x-2">
+        <i class="fa-solid fa-play text-xs text-blue-400"></i>
+        <span class="text-xs text-slate-400">Active Runs:</span>
+        <span id="kpi-active-runs" class="text-xs font-bold text-blue-400">2</span>
+      </div>
+      <div class="bg-slate-800/80 border border-slate-700/80 px-3 py-1.5 rounded-lg flex items-center space-x-2">
+        <i class="fa-solid fa-hand text-xs text-amber-400"></i>
+        <span class="text-xs text-slate-400">Blocked Runs:</span>
+        <span id="kpi-blocked-runs" class="text-xs font-bold text-amber-400">0</span>
+      </div>
+      <div class="bg-slate-800/80 border border-slate-700/80 px-3 py-1.5 rounded-lg flex items-center space-x-2">
+        <i class="fa-solid fa-bell text-xs text-rose-400"></i>
+        <span class="text-xs text-slate-400">Alerts:</span>
+        <span id="kpi-alerts-count" class="text-xs font-bold text-rose-400">1</span>
+      </div>
+    </div>
+
+    <!-- Simulator Controller & WS status -->
+    <div class="flex items-center space-x-3">
+      <div class="flex items-center bg-slate-800 rounded-lg p-1 border border-slate-700">
+        <button id="btn-toggle-sim" class="px-2.5 py-1 text-xs font-medium rounded bg-emerald-600 hover:bg-emerald-500 text-white flex items-center space-x-1 transition">
+          <i id="sim-icon" class="fa-solid fa-pause"></i>
+          <span id="sim-text">Running</span>
+        </button>
+        <button id="btn-speed-1x" class="px-2 py-1 text-xs text-cyan-400 hover:bg-slate-700 rounded transition font-mono">1x</button>
+        <button id="btn-speed-2x" class="px-2 py-1 text-xs text-slate-400 hover:bg-slate-700 rounded transition font-mono">2x</button>
+        <button id="btn-speed-5x" class="px-2 py-1 text-xs text-slate-400 hover:bg-slate-700 rounded transition font-mono">5x</button>
+      </div>
+
+      <button id="btn-reset-factory" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-300 rounded-lg border border-slate-700 flex items-center space-x-1.5 transition" title="Reset factory to clean baseline">
+        <i class="fa-solid fa-rotate-left text-slate-400"></i>
+        <span>Reset</span>
+      </button>
+
+      <div class="flex items-center space-x-1.5 bg-slate-800/60 border border-slate-700/60 px-2.5 py-1 rounded-full text-xs font-mono">
+        <span id="ws-indicator" class="w-2 h-2 rounded-full bg-emerald-400"></span>
+        <span id="ws-status-text" class="text-slate-300">Live</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- NAVIGATION TABS -->
+  <nav class="bg-slate-900/90 border-b border-slate-800 px-6 flex space-x-2 overflow-x-auto text-sm">
+    <button onclick="switchTab('tab-twin')" class="nav-tab active px-4 py-3 border-b-2 font-medium transition flex items-center space-x-2" data-target="tab-twin">
+      <i class="fa-solid fa-industry text-xs"></i>
+      <span>Factory Floor Twin</span>
+    </button>
+    <button onclick="switchTab('tab-dispatch')" class="nav-tab px-4 py-3 border-b-2 border-transparent text-slate-400 hover:text-slate-200 font-medium transition flex items-center space-x-2" data-target="tab-dispatch">
+      <i class="fa-solid fa-calendar-check text-xs"></i>
+      <span>Dispatch & Anti-Collision</span>
+    </button>
+    <button onclick="switchTab('tab-thread')" class="nav-tab px-4 py-3 border-b-2 border-transparent text-slate-400 hover:text-slate-200 font-medium transition flex items-center space-x-2" data-target="tab-thread">
+      <i class="fa-solid fa-timeline text-xs"></i>
+      <span>Digital Thread (Unit Story)</span>
+    </button>
+    <button onclick="switchTab('tab-early-warning')" class="nav-tab px-4 py-3 border-b-2 border-transparent text-slate-400 hover:text-slate-200 font-medium transition flex items-center space-x-2" data-target="tab-early-warning">
+      <i class="fa-solid fa-bolt text-xs"></i>
+      <span>Early Warning Radar & SPC</span>
+      <span id="radar-badge" class="ml-1 px-1.5 py-0.2 rounded-full bg-rose-500/20 text-rose-400 text-xs font-bold border border-rose-500/40">1</span>
+    </button>
+    <button onclick="switchTab('tab-rca')" class="nav-tab px-4 py-3 border-b-2 border-transparent text-slate-400 hover:text-slate-200 font-medium transition flex items-center space-x-2" data-target="tab-rca">
+      <i class="fa-solid fa-magnifying-glass-chart text-xs"></i>
+      <span>Root-Cause Studio ("What Went Wrong?")</span>
+    </button>
+    <button onclick="switchTab('tab-scenarios')" class="nav-tab px-4 py-3 border-b-2 border-transparent text-amber-400/80 hover:text-amber-300 font-medium transition flex items-center space-x-2" data-target="tab-scenarios">
+      <i class="fa-solid fa-flask text-xs text-amber-400"></i>
+      <span>Interactive Scenarios</span>
+    </button>
+  </nav>
+
+  <!-- MAIN TAB CONTENT CONTAINER -->
+  <main class="flex-1 p-6 overflow-y-auto max-w-7xl mx-auto w-full space-y-6">
+
+    <!-- ================= TAB 1: FACTORY FLOOR TWIN ================= -->
+    <div id="tab-twin" class="tab-content space-y-6">
+      
+      <!-- Quick Prompt Alert Banner (shows when prompt scenario is triggered) -->
+      <div id="prompt-alert-banner" class="hidden bg-rose-950/40 border border-rose-500/60 rounded-xl p-4 flex items-start space-x-3 text-rose-200 shadow-lg shadow-rose-950/30">
+        <i class="fa-solid fa-triangle-exclamation text-rose-400 text-xl mt-0.5"></i>
+        <div class="flex-1">
+          <div class="flex items-center justify-between">
+            <h4 class="font-bold text-rose-300">Prompt Scenario Triggered: Line Frozen & Material On Hold</h4>
+            <span class="text-xs bg-rose-900/60 text-rose-300 px-2 py-0.5 rounded font-mono">INCIDENT-Q4</span>
+          </div>
+          <p class="text-xs mt-1 text-slate-300">
+            Material batch <span class="font-mono text-amber-300 font-bold">LOT-RESIN-204</span> was placed ON HOLD. Machine <span class="font-mono text-cyan-300">INJ-03</span> is ready, operator <span class="font-mono text-indigo-300">OP-103</span> is waiting, and order <span class="font-mono text-rose-400">WO-9013</span> is overdue. System successfully intercepted and blocked a double-booking attempt by competing run RUN-2026-004.
+          </p>
+          <div class="mt-2.5 flex space-x-2">
+            <button onclick="switchTab('tab-rca'); executeRCA();" class="px-3 py-1 bg-rose-600 hover:bg-rose-500 text-white rounded text-xs font-semibold flex items-center space-x-1 transition">
+              <i class="fa-solid fa-magnifying-glass"></i>
+              <span>Launch Root Cause Analysis</span>
+            </button>
+            <button onclick="switchTab('tab-dispatch')" class="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded text-xs font-semibold flex items-center space-x-1 border border-slate-700 transition">
+              <i class="fa-solid fa-arrows-split-up-and-left"></i>
+              <span>Re-Route Order to Batch B</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Machine Grid Header -->
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-lg font-bold text-white flex items-center space-x-2">
+            <span>Production Cells & Machine Digital Twins</span>
+            <span class="text-xs bg-slate-800 text-slate-400 px-2 py-0.5 rounded-full border border-slate-700 font-normal">Live Telemetry Stream</span>
+          </h2>
+          <p class="text-xs text-slate-400">Real-time status, vibration, thermal load, and active resource binding.</p>
+        </div>
+      </div>
+
+      <!-- Machines Grid (Rendered dynamically) -->
+      <div id="machines-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
+        <!-- Dynamically injected via app.js -->
+      </div>
+
+      <!-- Material Silos & Operator Floor Status -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <!-- Materials Inventory & Hold Management (2 Cols) -->
+        <div class="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-lg">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h3 class="font-bold text-white text-sm flex items-center space-x-2">
+                <i class="fa-solid fa-cubes-stacked text-cyan-400"></i>
+                <span>Raw Material Lots & Quality Status</span>
+              </h3>
+              <p class="text-xs text-slate-400">Strict gatekeeper: On-hold or depleted lots cannot be reserved or consumed.</p>
+            </div>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-xs text-left">
+              <thead class="text-slate-400 border-b border-slate-800 uppercase tracking-wider font-semibold">
+                <tr>
+                  <th class="py-2.5 px-3">Lot ID</th>
+                  <th class="py-2.5 px-3">Material / Grade</th>
+                  <th class="py-2.5 px-3">Supplier Lot</th>
+                  <th class="py-2.5 px-3">Remaining Qty</th>
+                  <th class="py-2.5 px-3">Status</th>
+                  <th class="py-2.5 px-3 text-right">Hold Gate</th>
+                </tr>
+              </thead>
+              <tbody id="materials-table-body" class="divide-y divide-slate-800/60">
+                <!-- Dynamically populated -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Floor Operators & Qualifications (1 Col) -->
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-lg">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h3 class="font-bold text-white text-sm flex items-center space-x-2">
+                <i class="fa-solid fa-users text-blue-400"></i>
+                <span>Active Operators & Badges</span>
+              </h3>
+              <p class="text-xs text-slate-400">Single active station lock & skill verification.</p>
+            </div>
+          </div>
+          <div id="operators-list" class="space-y-3">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- ================= TAB 2: PRODUCTION DISPATCH & ANTI-COLLISION ================= -->
+    <div id="tab-dispatch" class="tab-content hidden space-y-6">
+      
+      <!-- Anti-Collision Callout Banner -->
+      <div class="bg-gradient-to-r from-blue-950/40 via-slate-900 to-slate-900 border border-blue-800/40 rounded-xl p-4 flex items-center justify-between shadow-lg">
+        <div class="flex items-center space-x-3">
+          <div class="w-9 h-9 rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center">
+            <i class="fa-solid fa-shield-halved text-lg"></i>
+          </div>
+          <div>
+            <h3 class="text-sm font-bold text-white">Deterministic Anti-Double-Booking Engine</h3>
+            <p class="text-xs text-slate-300">All resource reservations are executed under two-phase ACID locking. No material lot, machine, or operator can be double-booked across competing production runs.</p>
+          </div>
+        </div>
+        <button onclick="openNewOrderModal()" class="px-3.5 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold flex items-center space-x-1.5 transition shadow">
+          <i class="fa-solid fa-plus"></i>
+          <span>Create Work Order</span>
+        </button>
+      </div>
+
+      <!-- Active Work Orders / Production Runs Table -->
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-lg">
+        <h3 class="font-bold text-white text-sm mb-4 flex items-center justify-between">
+          <span>Active & Queued Work Orders</span>
+          <span class="text-xs font-normal text-slate-400">Live execution state machine</span>
+        </h3>
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs text-left">
+            <thead class="text-slate-400 border-b border-slate-800 uppercase tracking-wider font-semibold">
+              <tr>
+                <th class="py-3 px-3">Run ID / Order</th>
+                <th class="py-3 px-3">Product SKU</th>
+                <th class="py-3 px-3">Machine</th>
+                <th class="py-3 px-3">Operator</th>
+                <th class="py-3 px-3">Material Lot</th>
+                <th class="py-3 px-3">Progress</th>
+                <th class="py-3 px-3">Status</th>
+                <th class="py-3 px-3">Due Date</th>
+                <th class="py-3 px-3 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="runs-table-body" class="divide-y divide-slate-800/60">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Resource Allocation Matrix (Active Locks Inspector) -->
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-lg">
+        <h3 class="font-bold text-white text-sm mb-2 flex items-center space-x-2">
+          <i class="fa-solid fa-lock text-cyan-400"></i>
+          <span>Resource Lock Audit Log</span>
+        </h3>
+        <p class="text-xs text-slate-400 mb-4">Immutable concurrency log verifying mutex grant and release transitions.</p>
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs text-left font-mono">
+            <thead class="text-slate-400 border-b border-slate-800 uppercase tracking-wider font-sans">
+              <tr>
+                <th class="py-2.5 px-3">Lock ID</th>
+                <th class="py-2.5 px-3">Type</th>
+                <th class="py-2.5 px-3">Resource ID</th>
+                <th class="py-2.5 px-3">Held By Run</th>
+                <th class="py-2.5 px-3">Acquired At</th>
+                <th class="py-2.5 px-3">Lock Status</th>
+                <th class="py-2.5 px-3">Audit Notes</th>
+              </tr>
+            </thead>
+            <tbody id="locks-table-body" class="divide-y divide-slate-800/60">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ================= TAB 3: DIGITAL THREAD ("EVERY UNIT TELLS ITS STORY") ================= -->
+    <div id="tab-thread" class="tab-content hidden space-y-6">
+      
+      <!-- Unit Search & Quick Pick -->
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-lg space-y-4">
+        <div class="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h2 class="text-base font-bold text-white flex items-center space-x-2">
+              <i class="fa-solid fa-barcode text-cyan-400"></i>
+              <span>Digital Thread: "Every Unit Tells Its Story"</span>
+            </h2>
+            <p class="text-xs text-slate-400">Scan or search any finished part serial number to uncover its complete manufacturing genealogy and in-process sensor telemetry.</p>
+          </div>
+
+          <!-- Search Input -->
+          <div class="flex items-center space-x-2 w-full sm:w-auto">
+            <div class="relative flex-1 sm:w-72">
+              <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-xs text-slate-400"></i>
+              <input type="text" id="input-search-serial" placeholder="e.g. SN-VALVE-2026-1017" class="w-full bg-slate-800 border border-slate-700 rounded-lg pl-8 pr-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500">
+            </div>
+            <button onclick="searchUnitStory()" class="px-3.5 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg text-xs font-semibold transition">
+              Search
+            </button>
+          </div>
+        </div>
+
+        <!-- Quick Pick Serial Numbers -->
+        <div class="flex items-center space-x-2 text-xs text-slate-400 pt-2 border-t border-slate-800">
+          <span>Quick Select:</span>
+          <button onclick="loadUnitStory('SN-VALVE-2026-1017')" class="px-2.5 py-1 rounded bg-rose-950/60 text-rose-300 border border-rose-800 hover:bg-rose-900/60 font-mono transition">
+            SN-VALVE-2026-1017 (Defect / Patient Zero)
+          </button>
+          <button onclick="loadUnitStory('SN-VALVE-2026-1025')" class="px-2.5 py-1 rounded bg-emerald-950/60 text-emerald-300 border border-emerald-800 hover:bg-emerald-900/60 font-mono transition">
+            SN-VALVE-2026-1025 (Passed)
+          </button>
+          <button onclick="loadUnitStory('SN-ECU-2026-2040')" class="px-2.5 py-1 rounded bg-blue-950/60 text-blue-300 border border-blue-800 hover:bg-blue-900/60 font-mono transition">
+            SN-ECU-2026-2040 (Telemetry Board)
+          </button>
+        </div>
+      </div>
+
+      <!-- Unit Story Display Container -->
+      <div id="unit-story-container" class="space-y-6">
+        <!-- Populated via app.js with the selected unit's story -->
+      </div>
+
+    </div>
+
+    <!-- ================= TAB 4: EARLY WARNING RADAR & SPC ================= -->
+    <div id="tab-early-warning" class="tab-content hidden space-y-6">
+      
+      <!-- Telemetry Chart & Radar Summary -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <!-- Live SPC Telemetry Chart (2 Cols) -->
+        <div class="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-lg space-y-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="font-bold text-white text-sm flex items-center space-x-2">
+                <i class="fa-solid fa-chart-line text-cyan-400"></i>
+                <span>Statistical Process Control (SPC) Telemetry Stream</span>
+              </h3>
+              <p class="text-xs text-slate-400">Monitors continuous vibration & thermal drift with Western Electric rule detection.</p>
+            </div>
+            <select id="select-chart-machine" onchange="updateChartMachine(this.value)" class="bg-slate-800 border border-slate-700 text-xs rounded px-2.5 py-1 text-slate-200">
+              <option value="CNC-01">CNC-01 (Milling Center)</option>
+              <option value="SMT-02">SMT-02 (Pick & Place)</option>
+              <option value="INJ-03">INJ-03 (Injection Molder)</option>
+              <option value="LSW-04">LSW-04 (Laser Welder)</option>
+            </select>
+          </div>
+
+          <div class="h-64 w-full">
+            <canvas id="spc-telemetry-chart"></canvas>
+          </div>
+        </div>
+
+        <!-- Early Warning Detection Rules (1 Col) -->
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-lg space-y-3.5">
+          <h3 class="font-bold text-white text-sm flex items-center space-x-2">
+            <i class="fa-solid fa-radar text-amber-400"></i>
+            <span>Active Predictive Rule Engines</span>
+          </h3>
+
+          <div class="bg-slate-800/60 p-3 rounded-lg border border-slate-700/60 space-y-1">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-semibold text-white">Rule 1: 3-Sigma / Trip Limit</span>
+              <span class="text-xs text-emerald-400">ACTIVE</span>
+            </div>
+            <p class="text-xs text-slate-400">Instant trip if vibration exceeds 6.5 mm/s or temperature exceeds 88°C.</p>
+          </div>
+
+          <div class="bg-slate-800/60 p-3 rounded-lg border border-slate-700/60 space-y-1">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-semibold text-white">Rule 2: Monotonic Drift Slope</span>
+              <span class="text-xs text-cyan-400">PREDICTIVE</span>
+            </div>
+            <p class="text-xs text-slate-400">Flags upward drift over 6+ cycles before thresholds are crossed.</p>
+          </div>
+
+          <div class="bg-slate-800/60 p-3 rounded-lg border border-slate-700/60 space-y-1">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-semibold text-white">Rule 3: Cycle Time Creep</span>
+              <span class="text-xs text-amber-400">>25% SLOWDOWN</span>
+            </div>
+            <p class="text-xs text-slate-400">Detects subtle cycle latency to prevent line starvation downstream.</p>
+          </div>
+
+          <div class="bg-slate-800/60 p-3 rounded-lg border border-slate-700/60 space-y-1">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-semibold text-white">Rule 4: Material Hold Propagation</span>
+              <span class="text-xs text-rose-400">HARD GATE</span>
+            </div>
+            <p class="text-xs text-slate-400">Preemptively arrests work orders whenever raw lot is flagged by QA.</p>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Active Early Warning Alerts Feed -->
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-lg">
+        <h3 class="font-bold text-white text-sm mb-4 flex items-center justify-between">
+          <span>Active Early Warning Alerts & Recommended Actions</span>
+          <span class="text-xs font-normal text-slate-400">Pushed live over WebSockets</span>
+        </h3>
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs text-left">
+            <thead class="text-slate-400 border-b border-slate-800 uppercase tracking-wider font-semibold">
+              <tr>
+                <th class="py-2.5 px-3">Severity</th>
+                <th class="py-2.5 px-3">Source</th>
+                <th class="py-2.5 px-3">Alert Title</th>
+                <th class="py-2.5 px-3">Diagnostic Message</th>
+                <th class="py-2.5 px-3">Recommended Preventive Action</th>
+                <th class="py-2.5 px-3 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="alerts-table-body" class="divide-y divide-slate-800/60">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ================= TAB 5: ROOT-CAUSE STUDIO ================= -->
+    <div id="tab-rca" class="tab-content hidden space-y-6">
+      
+      <!-- Header Banner -->
+      <div class="bg-gradient-to-r from-purple-950/40 via-slate-900 to-slate-900 border border-purple-800/40 rounded-xl p-5 shadow-lg flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h2 class="text-base font-bold text-white flex items-center space-x-2">
+            <i class="fa-solid fa-magnifying-glass-chart text-purple-400"></i>
+            <span>Root-Cause Post-Mortem Studio: "What Exactly Went Wrong?"</span>
+          </h2>
+          <p class="text-xs text-slate-300 mt-1">
+            Pinpoint the exact material lot, machine, operator, and the precise moment in time when quality or process degradation began.
+          </p>
+        </div>
+        <button onclick="executeRCA()" class="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-xs font-semibold flex items-center space-x-2 transition shadow-lg shadow-purple-600/20">
+          <i class="fa-solid fa-play"></i>
+          <span>Run Root-Cause Correlator</span>
+        </button>
+      </div>
+
+      <!-- RCA Results Container -->
+      <div id="rca-results-container" class="space-y-6">
+        <!-- Populated via app.js -->
+      </div>
+
+    </div>
+
+    <!-- ================= TAB 6: INTERACTIVE SCENARIOS ================= -->
+    <div id="tab-scenarios" class="tab-content hidden space-y-6">
+      
+      <div>
+        <h2 class="text-lg font-bold text-white flex items-center space-x-2">
+          <i class="fa-solid fa-flask text-amber-400"></i>
+          <span>Live Interactive Factory Scenarios</span>
+        </h2>
+        <p class="text-xs text-slate-400">Trigger pre-engineered operational challenges directly to observe system behavior in real-time.</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        
+        <!-- Scenario 1: The Prompt Story -->
+        <div class="bg-slate-900 border border-slate-800 hover:border-amber-500/50 rounded-xl p-5 shadow-lg flex flex-col justify-between transition group">
+          <div class="space-y-2.5">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-amber-400 px-2 py-0.5 rounded bg-amber-950/60 border border-amber-800">SCENARIO 1 (PROMPT CONTEXT)</span>
+              <span class="text-xs text-slate-400">Line Freeze & Anti-Collision</span>
+            </div>
+            <h3 class="text-base font-bold text-white group-hover:text-amber-300 transition">The Production Freeze Incident</h3>
+            <p class="text-xs text-slate-300 leading-relaxed">
+              The line is running. Suddenly a batch of polymer resin <span class="text-amber-400 font-mono font-bold">LOT-RESIN-204</span> is flagged ON HOLD. Machine INJ-03 is ready, operator OP-103 is waiting, and order WO-9013 is overdue. A competing run attempts to double-book the material. Watch the platform arrest the order, prevent double-booking, and trace the issue.
+            </p>
+          </div>
+          <button onclick="triggerScenario('prompt_freeze')" class="mt-4 w-full py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-xs font-semibold flex items-center justify-center space-x-2 transition shadow">
+            <i class="fa-solid fa-play"></i>
+            <span>Simulate Prompt Freeze & Collision</span>
+          </button>
+        </div>
+
+        <!-- Scenario 2: Spindle Drift -->
+        <div class="bg-slate-900 border border-slate-800 hover:border-cyan-500/50 rounded-xl p-5 shadow-lg flex flex-col justify-between transition group">
+          <div class="space-y-2.5">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-cyan-400 px-2 py-0.5 rounded bg-cyan-950/60 border border-cyan-800">SCENARIO 2</span>
+              <span class="text-xs text-slate-400">Predictive Anomaly</span>
+            </div>
+            <h3 class="text-base font-bold text-white group-hover:text-cyan-300 transition">Spindle Thermal & Vibration Drift</h3>
+            <p class="text-xs text-slate-300 leading-relaxed">
+              Injects progressive spindle vibration drift into CNC Milling Center CNC-01. Demonstrates how SPC Rule 2 surfaces a predictive warning 5 cycles <span class="text-cyan-400 font-semibold">before</span> the tool breaks or causes an emergency line shutdown.
+            </p>
+          </div>
+          <button onclick="triggerScenario('spindle_drift')" class="mt-4 w-full py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg text-xs font-semibold flex items-center justify-center space-x-2 transition shadow">
+            <i class="fa-solid fa-play"></i>
+            <span>Simulate Spindle Vibration Drift</span>
+          </button>
+        </div>
+
+        <!-- Scenario 3: Genealogy Recall Audit -->
+        <div class="bg-slate-900 border border-slate-800 hover:border-purple-500/50 rounded-xl p-5 shadow-lg flex flex-col justify-between transition group">
+          <div class="space-y-2.5">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-purple-400 px-2 py-0.5 rounded bg-purple-950/60 border border-purple-800">SCENARIO 3</span>
+              <span class="text-xs text-slate-400">Customer Quality Excursion</span>
+            </div>
+            <h3 class="text-base font-bold text-white group-hover:text-purple-300 transition">Defect Genealogy & Patient Zero Audit</h3>
+            <p class="text-xs text-slate-300 leading-relaxed">
+              Customer reports burr defect on unit <span class="font-mono text-purple-300">SN-VALVE-2026-1017</span>. Instantly queries digital thread, correlates factors, pinpoints Patient Zero, and defines the exact containment quarantine lot.
+            </p>
+          </div>
+          <button onclick="triggerScenario('genealogy_recall')" class="mt-4 w-full py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-xs font-semibold flex items-center justify-center space-x-2 transition shadow">
+            <i class="fa-solid fa-play"></i>
+            <span>Execute Defect Recall & Patient Zero Audit</span>
+          </button>
+        </div>
+
+        <!-- Scenario 4: Factory Reset -->
+        <div class="bg-slate-900 border border-slate-800 hover:border-slate-600 rounded-xl p-5 shadow-lg flex flex-col justify-between transition group">
+          <div class="space-y-2.5">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-slate-400 px-2 py-0.5 rounded bg-slate-800 border border-slate-700">SCENARIO 4</span>
+              <span class="text-xs text-slate-400">Factory Reset</span>
+            </div>
+            <h3 class="text-base font-bold text-white group-hover:text-slate-300 transition">Clean Factory State Reset</h3>
+            <p class="text-xs text-slate-300 leading-relaxed">
+              Clears all injected anomalies, resets machine vibrations to baseline, unlocks all resources, releases holds, and re-seeds clean production work orders.
+            </p>
+          </div>
+          <button onclick="triggerScenario('reset')" class="mt-4 w-full py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg text-xs font-semibold flex items-center justify-center space-x-2 transition shadow">
+            <i class="fa-solid fa-rotate-left"></i>
+            <span>Restore Factory Baseline</span>
+          </button>
+        </div>
+
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- MODAL: DISPATCH ORDER -->
+  <div id="modal-dispatch" class="fixed inset-0 z-50 flex items-center justify-center hidden bg-black/70 backdrop-blur-sm p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-xl max-w-lg w-full p-6 space-y-4 shadow-2xl">
+      <div class="flex items-center justify-between">
+        <h3 class="font-bold text-white text-base">Dispatch Work Order</h3>
+        <button onclick="closeModal('modal-dispatch')" class="text-slate-400 hover:text-white">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <!-- Collision warning if conflict -->
+      <div id="dispatch-error-box" class="hidden p-3 rounded-lg collision-badge text-xs text-rose-200 space-y-1">
+        <div class="font-bold flex items-center space-x-1.5">
+          <i class="fa-solid fa-circle-exclamation text-rose-400"></i>
+          <span>Resource Collision Blocked</span>
+        </div>
+        <p id="dispatch-error-msg"></p>
+      </div>
+
+      <form id="form-dispatch" onsubmit="submitDispatch(event)" class="space-y-3.5 text-xs">
+        <input type="hidden" id="dispatch-run-id">
+
+        <div>
+          <label class="block text-slate-400 mb-1">Work Order / Run ID</label>
+          <input type="text" id="dispatch-run-display" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white font-mono" readonly>
+        </div>
+
+        <div>
+          <label class="block text-slate-400 mb-1">Select Machine (Must be IDLE)</label>
+          <select id="dispatch-machine-select" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white" required>
+            <!-- Injected -->
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-slate-400 mb-1">Select Operator (Must be Certified & AVAILABLE)</label>
+          <select id="dispatch-operator-select" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white" required>
+            <!-- Injected -->
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-slate-400 mb-1">Assign Material Lot (Must NOT be ON_HOLD)</label>
+          <select id="dispatch-material-select" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white" required>
+            <!-- Injected -->
+          </select>
+        </div>
+
+        <div class="pt-2 flex justify-end space-x-2">
+          <button type="button" onclick="closeModal('modal-dispatch')" class="px-4 py-2 rounded bg-slate-800 hover:bg-slate-700 text-slate-300">Cancel</button>
+          <button type="submit" class="px-4 py-2 rounded bg-blue-600 hover:bg-blue-500 text-white font-semibold">Lock Resources & Start</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: CREATE ORDER -->
+  <div id="modal-create-order" class="fixed inset-0 z-50 flex items-center justify-center hidden bg-black/70 backdrop-blur-sm p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+      <div class="flex items-center justify-between">
+        <h3 class="font-bold text-white text-base">New Production Work Order</h3>
+        <button onclick="closeModal('modal-create-order')" class="text-slate-400 hover:text-white">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <form id="form-create-order" onsubmit="submitCreateOrder(event)" class="space-y-3.5 text-xs">
+        <div>
+          <label class="block text-slate-400 mb-1">Order Number</label>
+          <input type="text" id="new-order-num" placeholder="e.g. WO-9015" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white" required>
+        </div>
+
+        <div>
+          <label class="block text-slate-400 mb-1">Product SKU</label>
+          <input type="text" id="new-order-sku" placeholder="e.g. SKU-HYD-VALVE-C3" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white" required>
+        </div>
+
+        <div>
+          <label class="block text-slate-400 mb-1">Product Name</label>
+          <input type="text" id="new-order-name" placeholder="e.g. Aerospace High-Flow Valve C3" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white" required>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-slate-400 mb-1">Target Quantity</label>
+            <input type="number" id="new-order-qty" value="50" min="1" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white" required>
+          </div>
+          <div>
+            <label class="block text-slate-400 mb-1">Primary Material</label>
+            <select id="new-order-material" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white" required>
+              <!-- Injected -->
+            </select>
+          </div>
+        </div>
+
+        <div class="pt-2 flex justify-end space-x-2">
+          <button type="button" onclick="closeModal('modal-create-order')" class="px-4 py-2 rounded bg-slate-800 hover:bg-slate-700 text-slate-300">Cancel</button>
+          <button type="submit" class="px-4 py-2 rounded bg-blue-600 hover:bg-blue-500 text-white font-semibold">Create Work Order</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODULAR JAVASCRIPT ARCHITECTURE -->
+  <script src="/static/js/api.js"></script>
+  <script src="/static/js/websocket.js"></script>
+  <script src="/static/js/factory_twin.js"></script>
+  <script src="/static/js/dispatch.js"></script>
+  <script src="/static/js/digital_thread.js"></script>
+  <script src="/static/js/spc_chart.js"></script>
+  <script src="/static/js/rca_studio.js"></script>
+  <script src="/static/js/scenarios.js"></script>
+  <script src="/static/js/app.js"></script>
+</body>
+</html>
